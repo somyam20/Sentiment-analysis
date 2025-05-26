@@ -1,0 +1,47 @@
+import pandas as pd
+import re
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report, confusion_matrix
+import seaborn as sns
+import matplotlib.pyplot as plt
+import pickle
+
+file_path = "path/to/your/dataset.xlsx"
+df = pd.read_excel(file_path)
+df.head()
+
+def clean_text(text):
+    text = re.sub(r"<.*?>", "", text)
+    text = re.sub(r"[^a-zA-Z\s]", "", text)
+    text = text.lower()
+    return text
+
+df["clean_review"] = df["review"].apply(clean_text)
+df["label"] = df["sentiment"].map({"positive": 1, "negative": 0})
+
+X_train, X_test, y_train, y_test = train_test_split(df["clean_review"], df["label"], test_size=0.2, random_state=42)
+
+vectorizer = TfidfVectorizer(max_features=5000)
+X_train_vec = vectorizer.fit_transform(X_train)
+X_test_vec = vectorizer.transform(X_test)
+
+model = LogisticRegression()
+model.fit(X_train_vec, y_train)
+
+y_pred = model.predict(X_test_vec)
+print(classification_report(y_test, y_pred))
+
+conf_mat = confusion_matrix(y_test, y_pred)
+sns.heatmap(conf_mat, annot=True, fmt='d', cmap='Blues')
+plt.title("Confusion Matrix")
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.show()
+
+with open("sentiment_model.pkl", "wb") as f:
+    pickle.dump(model, f)
+
+with open("tfidf_vectorizer.pkl", "wb") as f:
+    pickle.dump(vectorizer, f)
